@@ -1,69 +1,80 @@
 package com.example.myquote;
 
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.recyclerview.widget.DividerItemDecoration;
+import androidx.recyclerview.widget.LinearLayoutManager;
+import androidx.recyclerview.widget.RecyclerView;
 
-import android.content.Intent;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.View;
-import android.widget.Button;
 import android.widget.ProgressBar;
-import android.widget.TextView;
 import android.widget.Toast;
 
 import com.loopj.android.http.AsyncHttpClient;
 import com.loopj.android.http.AsyncHttpResponseHandler;
 
+import org.json.JSONArray;
 import org.json.JSONObject;
+
+import java.util.ArrayList;
 
 import cz.msebera.android.httpclient.Header;
 
-public class MainActivity extends AppCompatActivity {
+public class ListQuotesActivity extends AppCompatActivity {
 
-    private TextView tvQuote, tvAuthor;
+    private static final String TAG = ListQuotesActivity.class.getSimpleName();
+    private RecyclerView listQuotes;
     private ProgressBar progressBar;
-    private static final String TAG = MainActivity.class.getSimpleName();
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        setContentView(R.layout.activity_main);
+        setContentView(R.layout.activity_list_quotes);
 
-        tvQuote = findViewById(R.id.tvQuote);
-        tvAuthor = findViewById(R.id.tvAuthor);
+        if (getSupportActionBar() != null) {
+            getSupportActionBar().setTitle("List of Quotes");
+        }
+
         progressBar = findViewById(R.id.progressBar);
-        getRandomQuote();
+        listQuotes = findViewById(R.id.listQuotes);
 
-        Button btnAllQuote = findViewById(R.id.btnAllQuotes);
-        btnAllQuote.setOnClickListener(view ->
-                startActivity(new Intent(MainActivity.this, ListQuotesActivity.class))
-        );
+        LinearLayoutManager layoutManager = new LinearLayoutManager(this);
+        listQuotes.setLayoutManager(layoutManager);
+        DividerItemDecoration itemDecoration = new DividerItemDecoration(this, layoutManager.getOrientation());
+        listQuotes.addItemDecoration(itemDecoration);
+        getListQuotes();
     }
 
-    private void getRandomQuote() {
+    private void getListQuotes(){
         progressBar.setVisibility(View.VISIBLE);
         AsyncHttpClient client = new AsyncHttpClient();
-        String url = "https://quote-api.dicoding.dev/random";
+        String url = "https://quote-api.dicoding.dev/list";
         client.get(url, new AsyncHttpResponseHandler() {
             @Override
             public void onSuccess(int statusCode, Header[] headers, byte[] responseBody) {
+                // Jika koneksi berhasil
                 progressBar.setVisibility(View.INVISIBLE);
+
+                ArrayList<String> listQuote = new ArrayList<>();
                 String result = new String(responseBody);
                 Log.d(TAG, result);
                 try {
-                    JSONObject responseObject = new JSONObject(result);
+                    JSONArray jsonArray = new JSONArray(result);
+                    for (int i = 0; i < jsonArray.length(); i++) {
+                        JSONObject jsonObject = jsonArray.getJSONObject(i);
+                        String quote = jsonObject.getString("en");
+                        String author = jsonObject.getString("author");
+                        listQuote.add("\n"+quote +"\n — "+author+"\n");
+                    }
 
-                    String quote = responseObject.getString("en");
-                    String author = responseObject.getString("author");
-
-                    tvQuote.setText(quote);
-                    tvAuthor.setText(author);
-
-                } catch (Exception e){
-                    Toast.makeText(MainActivity.this, e.getMessage(), Toast.LENGTH_SHORT).show();
+                    // Set data To Adapter
+                    QuoteAdapter adapter = new QuoteAdapter(listQuote);
+                    listQuotes.setAdapter(adapter);
+                } catch (Exception e) {
+                    Toast.makeText(ListQuotesActivity.this, e.getMessage(), Toast.LENGTH_SHORT).show();
                     e.printStackTrace();
                 }
-
             }
 
             @Override
@@ -85,8 +96,7 @@ public class MainActivity extends AppCompatActivity {
                         errorMessage =  statusCode + " : " + error.getMessage();
                         break;
                 }
-                Toast.makeText(MainActivity.this, errorMessage, Toast.LENGTH_SHORT).show();
-            }
+                Toast.makeText(ListQuotesActivity.this, errorMessage, Toast.LENGTH_SHORT).show();            }
         });
     }
 }
